@@ -19,9 +19,6 @@ from constants import (
     MACBOOK_BUTTON,
     SPASIBO_CLOSE_BUTTON,
     COOKIES_CLOSE_BUTTON,
-    RESOLUTION_FILTER,
-    DISPLAY_FILTER,
-    PROCESSOR_FILTER,
     ORDERING_DROPBOX,
     IN_STOCK_FILTER,
     ALL_ITEM_CARDS,
@@ -39,13 +36,15 @@ class MegaMarket:
         self.driver.get(self.url)
         
         # Find and click login button, wait for login window
-        login_button = self.driver.find_element(*INITIAL_LOGIN_LINK)
-        self._create_action_chain_click(login_button).perform()
+        self._create_action_chain_click(
+            self.driver.find_element(*INITIAL_LOGIN_LINK)
+        ).perform()
         self._wdw_pres_elem(PHONE_LOGIN_BUTTON)
 
         #Find and click 'Войти по номеру телефона' button, wait for form
-        phone_login_button = self.driver.find_element(*PHONE_LOGIN_BUTTON)
-        self._create_action_chain_click(phone_login_button).perform()
+        self._create_action_chain_click(
+            self.driver.find_element(*PHONE_LOGIN_BUTTON)
+        ).perform()
         self._wdw_pres_elem(PHONE_TEXTBOX)
         
         #Find textbox and 'Получить код' button
