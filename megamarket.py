@@ -1,6 +1,8 @@
+import time
 from typing import Tuple
 from selenium import webdriver
-from selenium.common.exceptions import TimeoutException
+from selenium.webdriver.common.by import By
+from selenium.common.exceptions import TimeoutException, NoSuchElementException
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.support import expected_conditions as EC
@@ -16,7 +18,14 @@ from constants import (
     LAPTOPS_BUTTON,
     MACBOOK_BUTTON,
     SPASIBO_CLOSE_BUTTON,
-    COOKIES_CLOSE_BUTTON
+    COOKIES_CLOSE_BUTTON,
+    RESOLUTION_FILTER,
+    DISPLAY_FILTER,
+    PROCESSOR_FILTER,
+    ORDERING_DROPBOX,
+    IN_STOCK_FILTER,
+    ALL_ITEM_CARDS,
+    CLEAR_FILTERS_BUTTON
 )
 
 class MegaMarket:
@@ -26,6 +35,7 @@ class MegaMarket:
     def __init__(self, phone_number: str):
         self.url = 'https://megamarket.ru/'
         self.driver = webdriver.Firefox()
+        self.driver.set_window_size(1920, 1080)
         self.driver.get(self.url)
         
         # Find and click login button, wait for login window
@@ -64,7 +74,13 @@ class MegaMarket:
             except TimeoutException:
                 print('Nothing to close')
         
+        self.driver.execute_script('window.scroll(0, 0);')
+        
     def proceed_to_catalogue(self):
+        """ 
+        Method for opening the catalogue.
+        Catalogue item is hardcoded.
+        """
         WebDriverWait(self.driver, 20).until(EC.invisibility_of_element(CODE_TEXTBOX))
         
         catalogue_elements = [
@@ -90,7 +106,55 @@ class MegaMarket:
                 self._create_action_chain_click(
                     self.driver.find_element(*element)
                 ).perform()
+    
+    def apply_filters(self):
+        try:
+            self._wdw_pres_elem(ORDERING_DROPBOX)
+        except TimeoutError:
+            print('You didn`t proceed to catalogue')
+            return
+        
+        in_stock_toggle = self.driver.find_element(*IN_STOCK_FILTER)
+        self.driver.execute_script('arguments[0].scrollIntoView(true); window.scrollBy(0, -80);', in_stock_toggle)
+        self._create_action_chain_click(in_stock_toggle).perform()
+        time.sleep(5)
 
+        for element in self.driver.find_elements(By.CLASS_NAME, 'filters-desktop__filter-groups.list'):
+            for subelement in element.find_elements(By.CLASS_NAME, 'filters-desktop__filter-item'):
+                checkboxes = subelement.find_elements(
+                        By.CLASS_NAME,
+                        'form-group.form-group-checkbox.error-top-left.listing-filter-checkbox'
+                    )
+                
+                try:
+                    first_enabled_checkbox = [cb for cb in checkboxes if not cb.get_attribute('disabled')][0]
+                except IndexError:
+                    print('No available items. Skipping filter.')
+                    continue
+                self.driver.execute_script('arguments[0].scrollIntoView(true); window.scrollBy(0, -80);', subelement)
+                
+                element_to_click = first_enabled_checkbox.find_element(By.CLASS_NAME, 'checkbox-text')
+                self._create_action_chain_click(element_to_click).perform()
+                time.sleep(5)
+    
+    def add_to_cart(self):
+        self.driver.execute_script(
+            'arguments[0].scrollIntoView(true); window.scrollBy(0, -80)',
+            self.driver.find_element(*CLEAR_FILTERS_BUTTON)
+            )
+        
+        try:
+            item_cards = self.driver.find_elements(*ALL_ITEM_CARDS)
+        except NoSuchElementException:
+            print('No items in stock')
+                
+        button = item_cards[0].find_element(By.CLASS_NAME, 'catalog-buy-button__button.btn.sm')
+
+        self._create_action_chain_click(button).perform()
+        self._create_action_chain_click(
+            self.driver.find_element(By.CLASS_NAME, 'mini-cart__info.mini-cart__info_no-radius')
+        ).perform()
+        
     def _create_action_chain_click(self, element):
         return ActionChains(self.driver).move_to_element(element).click(element)
     
@@ -105,4 +169,8 @@ class MegaMarket:
         return phone_number[phone_number.index('9'):]
 
 if __name__ == '__main__':
-    MegaMarket('79990870968').proceed_to_catalogue()
+    import sys
+    mm = MegaMarket(sys.argv[1])
+    mm.proceed_to_catalogue()
+    mm.apply_filters()
+    mm.add_to_cart()
