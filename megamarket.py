@@ -2,7 +2,7 @@ import time
 from typing import Tuple
 from selenium import webdriver
 from selenium.webdriver.common.by import By
-from selenium.common.exceptions import TimeoutException, NoSuchElementException
+from selenium.common.exceptions import TimeoutException, NoSuchElementException, StaleElementReferenceException
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.support import expected_conditions as EC
@@ -119,22 +119,26 @@ class MegaMarket:
         time.sleep(5)
 
         for element in self.driver.find_elements(By.CLASS_NAME, 'filters-desktop__filter-groups.list'):
-            for subelement in element.find_elements(By.CLASS_NAME, 'filters-desktop__filter-item'):
-                checkboxes = subelement.find_elements(
-                        By.CLASS_NAME,
-                        'form-group.form-group-checkbox.error-top-left.listing-filter-checkbox'
-                    )
-                
-                try:
-                    first_enabled_checkbox = [cb for cb in checkboxes if not cb.get_attribute('disabled')][0]
-                except IndexError:
-                    print('No available items. Skipping filter.')
-                    continue
-                self.driver.execute_script('arguments[0].scrollIntoView(true); window.scrollBy(0, -80);', subelement)
-                
-                element_to_click = first_enabled_checkbox.find_element(By.CLASS_NAME, 'checkbox-text')
-                self._create_action_chain_click(element_to_click).perform()
-                time.sleep(5)
+            try:
+                for subelement in element.find_elements(By.CLASS_NAME, 'filters-desktop__filter-item'):
+                    checkboxes = subelement.find_elements(
+                            By.CLASS_NAME,
+                            'form-group.form-group-checkbox.error-top-left.listing-filter-checkbox'
+                        )
+                    
+                    try:
+                        first_enabled_checkbox = [cb for cb in checkboxes if not cb.get_attribute('disabled')][0]
+                    except IndexError:
+                        print('No available items. Skipping filter.')
+                        continue
+                    self.driver.execute_script('arguments[0].scrollIntoView(true); window.scrollBy(0, -80);', subelement)
+                    
+                    element_to_click = first_enabled_checkbox.find_element(By.CLASS_NAME, 'checkbox-text')
+                    self._create_action_chain_click(element_to_click).perform()
+                    time.sleep(5)
+            except StaleElementReferenceException:
+                print('Filter no longer available')
+
     
     def add_to_cart(self):
         self.driver.execute_script(
